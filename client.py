@@ -31,19 +31,18 @@ FLAG_EXIT = False
 with open(filename, 'w') as csvfile:
     def subscribe(client: mqtt_client):
         def on_message(client, userdata, msg):
-            print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
+            #print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
             mydict = json.loads(msg.payload.decode())
             mydict["topic"] = str(msg.topic)
             mydict["time"] = time.time()
             if str(msg.topic) in last_message:
-                if last_message[str(msg.topic)] == time.time():
-                    return
+                if mydict["time"] - last_message[str(msg.topic)]["time"] < 2:
+                    last_message[str(msg.topic)] = mydict
                 else:
-                    last_message[str(msg.topic)] = time.time() #ajouter +- 2s
+                    last_message[str(msg.topic)] = mydict
                     writer.writerow(mydict)
             else:
-                last_message[str(msg.topic)] = time.time()
-                writer.writerow(mydict)
+                last_message[str(msg.topic)] = mydict
             
 
         client.subscribe(TOPIC)
