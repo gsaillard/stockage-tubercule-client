@@ -9,7 +9,7 @@ import csv
 
 from paho.mqtt import client as mqtt_client
 
-filename = 'log.csv'
+filename = ''
 BROKER = 'localhost'
 PORT = 1883
 TOPIC = "zigbee2mqtt/+"
@@ -25,7 +25,7 @@ MAX_RECONNECT_COUNT = 12
 MAX_RECONNECT_DELAY = 60
 
 last_message = dict()
-
+fields = []
 FLAG_EXIT = False
 
 
@@ -35,6 +35,15 @@ def subscribe(client: mqtt_client):
         mydict = json.loads(msg.payload.decode())
         mydict["topic"] = str(msg.topic)
         mydict["time"] = time.time()
+
+        if len(fields) == 0: #premier message initialisation du fichier log
+            fields = list(mydict.keys())
+            filename = f'log-{time.ctime(time.time())}'
+            with open(filename, 'w') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=fields)
+                writer.writeheader()
+                csvfile.close()
+        
         if str(msg.topic) in last_message:
             if mydict["time"] - last_message[str(msg.topic)]["time"] < 2:
                 last_message[str(msg.topic)] = mydict #garder en mémoire le dernier message
@@ -73,15 +82,14 @@ def on_disconnect(client, userdata, rc):
         reconnect_delay = min(reconnect_delay, MAX_RECONNECT_DELAY)
         reconnect_count += 1
     logging.info("Reconnect failed after %s attempts. Exiting...", reconnect_count)
-fields = ["topic","time", "Valeur 1: Temperature_1","Valeur 2: Humidity_2","Valeur 3: CO2 PPM_3","Valeur 4: VOC PPB_4","Valeur 5: Luminosité lux_5","linkquality"]
 
-with open(filename, 'w') as csvfile:
-    writer = csv.DictWriter(csvfile, fieldnames=fields)
-    writer.writeheader()
-    csvfile.close()
 
-client = mqtt_client.Client(client_id=CLIENT_ID, callback_api_version=mqtt_client.CallbackAPIVersion.VERSION2)
-client.on_connect = on_connect
-client.connect(BROKER, PORT)
-subscribe(client)
-client.loop_forever()
+
+
+
+while True:
+    client = mqtt_client.Client(client_id=CLIENT_ID, callback_api_version=mqtt_client.CallbackAPIVersion.VERSION2)
+    client.on_connect = on_connect
+    client.connect(BROKER, PORT)
+    subscribe(client)
+    client.loop_forever()
